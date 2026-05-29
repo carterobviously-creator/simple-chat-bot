@@ -298,6 +298,40 @@
       font-size: 12px;
       color: var(--muted);
     }
+
+    /* In-app terminal (toggleable) */
+    .runtime-terminal {
+      margin: 0 16px 12px;
+      border: 1px solid #1e294d;
+      border-radius: 12px;
+      background: #05070f;
+      display: none;
+      overflow: hidden;
+    }
+
+    .runtime-terminal.open {
+      display: block;
+    }
+
+    .runtime-terminal-header {
+      padding: 8px 10px;
+      border-bottom: 1px solid #1a2447;
+      color: #aab4df;
+      font-size: 12px;
+      background: #0a1022;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .runtime-terminal-body {
+      max-height: 200px;
+      overflow: auto;
+      padding: 10px;
+      color: var(--terminal-green);
+      font-size: 12px;
+      line-height: 1.45;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -336,11 +370,17 @@
             <div class="toolbar-sub">Send a message and get a reply from Pollinations.</div>
           </div>
           <div class="toolbar-actions">
+            <button id="terminalToggleBtn" class="btn-secondary">Terminal</button>
             <button id="clearBtn" class="btn-secondary">Clear Chat</button>
           </div>
         </div>
 
         <div id="status" class="status">Ready.</div>
+
+        <div id="runtimeTerminal" class="runtime-terminal">
+          <div class="runtime-terminal-header">$ request-runtime.log</div>
+          <div id="runtimeTerminalBody" class="runtime-terminal-body"></div>
+        </div>
 
         <div id="messages" class="messages">
           <div class="message assistant">Hi! Ask me anything.</div>
@@ -370,9 +410,12 @@
     const promptInput = document.getElementById("promptInput");
     const sendBtn = document.getElementById("sendBtn");
     const clearBtn = document.getElementById("clearBtn");
+    const terminalToggleBtn = document.getElementById("terminalToggleBtn");
+    const runtimeTerminal = document.getElementById("runtimeTerminal");
+    const runtimeTerminalBody = document.getElementById("runtimeTerminalBody");
 
-    const API_ENDPOINT = "https://corsproxy.io/?https://text.pollinations.ai/openai";
-    const ATTEMPTS_PER_MESSAGE = 3;
+    const API_ENDPOINT = "https://text.pollinations.ai/openai";
+    const MAX_RETRIES = 6;
 
     let chatHistory = [{ role: "assistant", content: "Hi! Ask me anything." }];
 
@@ -382,6 +425,13 @@
       div.textContent = text;
       terminalBody.appendChild(div);
       terminalBody.scrollTop = terminalBody.scrollHeight;
+    }
+
+    function runtimeLine(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      runtimeTerminalBody.appendChild(div);
+      runtimeTerminalBody.scrollTop = runtimeTerminalBody.scrollHeight;
     }
 
     function wait(ms) {
@@ -448,9 +498,13 @@
       messagesEl.innerHTML = "";
       addMessage("assistant", "Hi! Ask me anything.");
       setStatus("Chat cleared.", "success");
+      runtimeTerminalBody.innerHTML = "";
+      runtimeLine("[runtime] cleared");
     }
 
-    async function requestOneReply(history) {
+    async function requestOneReply(history, attempt) {
+      runtimeLine(`[api] attempt ${attempt}/${MAX_RETRIES} -> POST ${API_ENDPOINT}`);
+
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -460,11 +514,32 @@
       if (!response.ok) {
         let responseText = "";
         try { responseText = await response.text(); } catch (_) {}
-        throw new Error(`Request failed with status ${response.status}${responseText ? `: ${responseText.slice(0, 200)}` : ""}`);
+        const msg = `Request failed with status ${response.status}${responseText ? `: ${responseText.slice(0, 200)}` : ""}`;
+        runtimeLine(`[api] attempt ${attempt} failed: ${msg}`);
+        throw new Error(msg);
       }
 
       const data = await response.json();
-      return data?.choices?.[0]?.message?.content || "No response content was returned.";
+      const reply = data?.choices?.[0]?.message?.content || "No response content was returned.";
+      runtimeLine(`[api] attempt ${attempt} success`);
+      return reply;
+    }
+
+    async function requestWithRetry(history) {
+      let lastError = null;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          setStatus(`Waiting for Pollinations response... (attempt ${attempt}/${MAX_RETRIES})`);
+          return await requestOneReply(history, attempt);
+        } catch (err) {
+          lastError = err;
+          if (attempt < MAX_RETRIES) {
+            runtimeLine("[api] retrying...");
+            await wait(300);
+          }
+        }
+      }
+      throw lastError || new Error("All retry attempts failed.");
     }
 
     async function sendMessage() {
@@ -477,14 +552,10 @@
       sendBtn.disabled = true;
 
       try {
-        for (let i = 1; i <= ATTEMPTS_PER_MESSAGE; i++) {
-          setStatus(`Waiting for Pollinations response... (${i}/${ATTEMPTS_PER_MESSAGE})`);
-          const reply = await requestOneReply(chatHistory);
-          addMessage("assistant", `[Attempt ${i}]\n${reply}`);
-          chatHistory.push({ role: "assistant", content: reply });
-        }
-
-        setStatus(`Received ${ATTEMPTS_PER_MESSAGE} responses.`, "success");
+        const reply = await requestWithRetry(chatHistory);
+        addMessage("assistant", reply);
+        chatHistory.push({ role: "assistant", content: reply });
+        setStatus("Response received.", "success");
       } catch (error) {
         console.error(error);
         addMessage("assistant", "Sorry, something went wrong while contacting Pollinations.");
@@ -494,6 +565,10 @@
         promptInput.focus();
       }
     }
+
+    terminalToggleBtn.addEventListener("click", () => {
+      runtimeTerminal.classList.toggle("open");
+    });
 
     sendBtn.addEventListener("click", sendMessage);
     clearBtn.addEventListener("click", clearChat);
