@@ -458,7 +458,7 @@
       setStatus("Waiting for Pollinations response...");
 
       try {
-        const response = await fetch("https://text.pollinations.ai/openai", {
+        const response = await fetch("https://cors.isomorphic-git.org/https://text.pollinations.ai/openai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: chatHistory })
