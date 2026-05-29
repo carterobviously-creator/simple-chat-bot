@@ -16,11 +16,12 @@
       --border: #2a3566;
       --user: #6f8cff;
       --assistant: #0d1430;
+      --terminal-bg: #05070f;
+      --terminal-green: #7CFF9E;
+      --terminal-dim: #6f7aa8;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -28,8 +29,110 @@
       background: linear-gradient(180deg, #0a0f1f, #111831);
       color: var(--text);
       min-height: 100vh;
+    }
+
+    /* Boot screen */
+    .boot {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top, #0d1225, #05070f 45%);
+      display: grid;
+      place-items: center;
+      z-index: 9999;
+      transition: opacity 500ms ease, visibility 500ms ease;
+    }
+
+    .boot.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .terminal {
+      width: min(860px, 92vw);
+      height: min(520px, 82vh);
+      border: 1px solid #1e294d;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #070b17, #05070f);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
       display: flex;
       flex-direction: column;
+    }
+
+    .terminal-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #1a2447;
+      background: #0a1022;
+      color: #aab4df;
+      font-size: 12px;
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.red { background: #ff5f56; }
+    .dot.yellow { background: #ffbd2e; }
+    .dot.green { background: #27c93f; }
+
+    .terminal-body {
+      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--terminal-green);
+      overflow: auto;
+      flex: 1;
+      white-space: pre-wrap;
+    }
+
+    .line.dim { color: var(--terminal-dim); }
+    .line.ok { color: #8dffad; }
+    .line.warn { color: #ffd38a; }
+
+    .progress-wrap {
+      margin-top: 10px;
+      border: 1px solid #23315f;
+      border-radius: 10px;
+      padding: 10px;
+      background: rgba(12, 18, 36, 0.7);
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      color: #a8b3e0;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .bar {
+      height: 10px;
+      background: #0d1430;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #273567;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #5eead4, #7c9cff);
+      transition: width 120ms linear;
+    }
+
+    /* App */
+    .app-shell {
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 400ms ease, transform 400ms ease;
+    }
+
+    .app-shell.ready {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     header {
@@ -42,10 +145,7 @@
       z-index: 10;
     }
 
-    h1 {
-      margin: 0;
-      font-size: 20px;
-    }
+    h1 { margin: 0; font-size: 20px; }
 
     .sub {
       margin-top: 6px;
@@ -58,7 +158,7 @@
       margin: 0 auto;
       padding: 18px;
       display: flex;
-      flex: 1;
+      min-height: calc(100vh - 76px);
     }
 
     .panel {
@@ -84,27 +184,10 @@
       background: rgba(13, 20, 48, 0.7);
     }
 
-    .toolbar-left {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
+    .toolbar-title { font-size: 15px; font-weight: 700; }
+    .toolbar-sub { font-size: 12px; color: var(--muted); }
 
-    .toolbar-title {
-      font-size: 15px;
-      font-weight: 700;
-    }
-
-    .toolbar-sub {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .toolbar-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
     button {
       border: 0;
@@ -118,15 +201,8 @@
       transition: transform 0.15s ease, opacity 0.2s ease;
     }
 
-    button:hover {
-      transform: translateY(-1px);
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
     .btn-secondary {
       background: var(--panel-2);
@@ -222,78 +298,134 @@
       font-size: 12px;
       color: var(--muted);
     }
-
-    @media (max-width: 700px) {
-      .app {
-        padding: 12px;
-      }
-
-      .panel {
-        min-height: calc(100vh - 100px);
-      }
-
-      .message {
-        max-width: 92%;
-      }
-
-      .composer {
-        flex-direction: column;
-      }
-
-      .composer button {
-        width: 100%;
-      }
-    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Pollinations Chatbot</h1>
-    <div class="sub">A simple chatbot UI powered by the Pollinations text API.</div>
-  </header>
-
-  <main class="app">
-    <section class="panel">
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <div class="toolbar-title">Chat</div>
-          <div class="toolbar-sub">Send a message and get a reply from Pollinations.</div>
+  <!-- Boot Overlay -->
+  <section id="boot" class="boot">
+    <div class="terminal">
+      <div class="terminal-top">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span style="margin-left:8px;">model-installer.sh</span>
+      </div>
+      <div id="terminalBody" class="terminal-body"></div>
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Installing model assets...</span>
+          <span id="percentText">0%</span>
         </div>
-        <div class="toolbar-actions">
-          <button id="clearBtn" class="btn-secondary">Clear Chat</button>
+        <div class="bar"><span id="barFill"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main App -->
+  <div id="appShell" class="app-shell">
+    <header>
+      <h1>Pollinations Chatbot</h1>
+      <div class="sub">A simple chatbot UI powered by the Pollinations text API.</div>
+    </header>
+
+    <main class="app">
+      <section class="panel">
+        <div class="toolbar">
+          <div>
+            <div class="toolbar-title">Chat</div>
+            <div class="toolbar-sub">Send a message and get a reply from Pollinations.</div>
+          </div>
+          <div class="toolbar-actions">
+            <button id="clearBtn" class="btn-secondary">Clear Chat</button>
+          </div>
         </div>
-      </div>
 
-      <div id="status" class="status">Ready.</div>
+        <div id="status" class="status">Ready.</div>
 
-      <div id="messages" class="messages">
-        <div class="message assistant">Hi! Ask me anything.</div>
-      </div>
+        <div id="messages" class="messages">
+          <div class="message assistant">Hi! Ask me anything.</div>
+        </div>
 
-      <div class="composer">
-        <textarea id="promptInput" placeholder="Type your message here..."></textarea>
-        <button id="sendBtn">Send</button>
-      </div>
+        <div class="composer">
+          <textarea id="promptInput" placeholder="Type your message here..."></textarea>
+          <button id="sendBtn">Send</button>
+        </div>
 
-      <div class="hint">
-        Press <strong>Ctrl + Enter</strong> (or <strong>Cmd + Enter</strong>) to send.
-      </div>
-    </section>
-  </main>
+        <div class="hint">
+          Press <strong>Ctrl + Enter</strong> (or <strong>Cmd + Enter</strong>) to send.
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script>
+    const boot = document.getElementById("boot");
+    const terminalBody = document.getElementById("terminalBody");
+    const percentText = document.getElementById("percentText");
+    const barFill = document.getElementById("barFill");
+    const appShell = document.getElementById("appShell");
+
     const statusEl = document.getElementById("status");
     const messagesEl = document.getElementById("messages");
     const promptInput = document.getElementById("promptInput");
     const sendBtn = document.getElementById("sendBtn");
     const clearBtn = document.getElementById("clearBtn");
 
-    let chatHistory = [
-      {
-        role: "assistant",
-        content: "Hi! Ask me anything."
+    let chatHistory = [{ role: "assistant", content: "Hi! Ask me anything." }];
+
+    function line(text, cls = "") {
+      const div = document.createElement("div");
+      div.className = `line ${cls}`.trim();
+      div.textContent = text;
+      terminalBody.appendChild(div);
+      terminalBody.scrollTop = terminalBody.scrollHeight;
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function runBootSequence() {
+      const steps = [
+        "[init] booting runtime...",
+        "[check] verifying environment",
+        "[net] connecting to registry",
+        "[fetch] downloading tokenizer.bin",
+        "[fetch] downloading model.safetensors",
+        "[verify] validating checksums",
+        "[build] compiling inference graph",
+        "[opt] applying quantization profile",
+        "[cache] warming prompt cache",
+        "[ready] model installation complete"
+      ];
+
+      let p = 0;
+      line("$ ./model-installer.sh", "dim");
+      await wait(400);
+
+      for (let i = 0; i < steps.length; i++) {
+        line(steps[i], i === steps.length - 1 ? "ok" : "");
+        const target = Math.min(100, Math.round(((i + 1) / steps.length) * 100));
+
+        while (p < target) {
+          p += Math.ceil(Math.random() * 3);
+          if (p > target) p = target;
+          percentText.textContent = `${p}%`;
+          barFill.style.width = `${p}%`;
+          await wait(35 + Math.random() * 55);
+        }
+
+        await wait(120 + Math.random() * 180);
       }
-    ];
+
+      await wait(450);
+      line("[launch] opening chat interface...", "warn");
+      await wait(500);
+
+      boot.classList.add("hidden");
+      appShell.classList.add("ready");
+      promptInput.focus();
+    }
 
     function setStatus(message, type = "") {
       statusEl.className = `status ${type}`.trim();
@@ -309,12 +441,7 @@
     }
 
     function clearChat() {
-      chatHistory = [
-        {
-          role: "assistant",
-          content: "Hi! Ask me anything."
-        }
-      ];
+      chatHistory = [{ role: "assistant", content: "Hi! Ask me anything." }];
       messagesEl.innerHTML = "";
       addMessage("assistant", "Hi! Ask me anything.");
       setStatus("Chat cleared.", "success");
@@ -331,26 +458,16 @@
       setStatus("Waiting for Pollinations response...");
 
       try {
-        const payload = {
-          messages: chatHistory
-        };
-
         const response = await fetch("https://text.pollinations.ai/openai", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: chatHistory })
         });
 
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
         const data = await response.json();
-        const reply =
-          data?.choices?.[0]?.message?.content ||
-          "No response content was returned.";
+        const reply = data?.choices?.[0]?.message?.content || "No response content was returned.";
 
         addMessage("assistant", reply);
         chatHistory.push({ role: "assistant", content: reply });
@@ -366,6 +483,7 @@
     }
 
     sendBtn.addEventListener("click", sendMessage);
+    clearBtn.addEventListener("click", clearChat);
 
     promptInput.addEventListener("keydown", (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
@@ -374,7 +492,7 @@
       }
     });
 
-    clearBtn.addEventListener("click", clearChat);
+    runBootSequence();
   </script>
 </body>
 </html>
