@@ -502,13 +502,24 @@
       runtimeLine("[runtime] cleared");
     }
 
+    function stripPollinationsAds(text) {
+      return String(text || "")
+        .replace(/\n*---\n+\*\*Support Pollinations\.AI:\*\*[\s\S]*$/i, "")
+        .replace(/\n*🌸\s*\*\*Ad\*\*\s*🌸[\s\S]*$/i, "")
+        .trim();
+    }
+
     async function requestOneReply(history, attempt) {
       runtimeLine(`[api] attempt ${attempt}/${MAX_RETRIES} -> POST ${API_ENDPOINT}`);
 
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history })
+        body: JSON.stringify({
+          model: "openai",
+          private: true,
+          messages: history
+        })
       });
 
       if (!response.ok) {
@@ -520,7 +531,8 @@
       }
 
       const data = await response.json();
-      const reply = data?.choices?.[0]?.message?.content || "No response content was returned.";
+      let reply = data?.choices?.[0]?.message?.content || "No response content was returned.";
+      reply = stripPollinationsAds(reply);
       runtimeLine(`[api] attempt ${attempt} success`);
       return reply;
     }
